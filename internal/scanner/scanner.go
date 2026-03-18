@@ -925,12 +925,8 @@ func writeResultsJSON(file *os.File, devices []DeviceInfo) error {
 		if len(device.Services) > 0 {
 			item.Services = make([]serializableService, 0, len(device.Services))
 			for _, service := range device.Services {
-				item.Services = append(item.Services, serializableService{
-					Port:     service.Port,
-					Protocol: service.Protocol,
-					Service:  service.Service,
-					Version:  service.Version,
-				})
+				// convert the existing ServiceInfo value into the serializable type
+				item.Services = append(item.Services, serializableService(service))
 			}
 		}
 		out = append(out, item)

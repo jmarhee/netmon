@@ -15,8 +15,17 @@ func decodeNetbiosEncoded(encoded []byte) ([]byte, error) {
 	for i := 0; i < 16; i++ {
 		hi := encoded[i*2]
 		lo := encoded[i*2+1]
-		if hi < 'A' || hi > 'P' || lo < 'A' || lo > 'P' {
-			// still decode but note non-standard bytes could be returned
+		// Clamp hi/lo to the expected 'A'..'P' range so decoding is
+		// deterministic and staticcheck does not flag an empty branch.
+		if hi < 'A' {
+			hi = 'A'
+		} else if hi > 'P' {
+			hi = 'P'
+		}
+		if lo < 'A' {
+			lo = 'A'
+		} else if lo > 'P' {
+			lo = 'P'
 		}
 		out[i] = ((hi - 'A') << 4) | (lo - 'A')
 	}
