@@ -1,0 +1,43 @@
+*.log
+results.*
+*.out
+bin/
+
+# Editor/project files
+*.swp
+*~
+.DS_Store
+.idea/
+.vscode/
+*.sublime-workspace
+*.sublime-project
+
+# Build / test outputs
+coverage.out
+coverage.html
+*.coverprofile
+*.prof
+build/
+dist/
+pkg/
+
+# Test artifacts and temp
+_testdata/
+*.tmp
+.cache/
+*.pid
+
+# Environment files (may contain secrets)
+.env
+.env.local
+.env.*.local
+
+# Go-specific
+vendor/
+Godeps/
+*.exe
+*.test
+
+# Archives and packages
+*.tgz
+*.tar.gz

@@ -1,0 +1,101 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+
+jobs:
+  build-and-lint:
+    name: Build, format, vet, lint, test & security
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        go-version: [1.22, 1.26]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+
+      - name: Set up Go
+        uses: actions/setup-go@v4
+        with:
+          go-version: ${{ matrix.go-version }}
+
+      - name: Show Go env
+        run: |
+          go version
+          go env
+
+      - name: Ensure modules download
+        run: |
+          go mod download
+
+      - name: Export Go paths for caching
+        run: |
+          echo "GOMODCACHE=$(go env GOMODCACHE)" >> $GITHUB_ENV
+          echo "GOCACHE=$(go env GOCACHE)" >> $GITHUB_ENV
+
+      - name: Cache Go modules and build cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ${{ env.GOMODCACHE }}
+            ${{ env.GOCACHE }}
+            ~/.cache/go-build
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - name: Install tooling
+        run: |
+          # Install gosec and golangci-lint into $GOPATH/bin
+          go install github.com/securego/gosec/v2/cmd/gosec@latest
+          go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+          echo "Installed gosec and golangci-lint at $(go env GOPATH)/bin"
+
+      - name: Add GOPATH bin to PATH
+        run: echo "PATH=$(go env GOPATH)/bin:$PATH" >> $GITHUB_ENV
+
+      - name: Check formatting (gofmt)
+        run: |
+          # Fail if any files need formatting.
+          fm=$(gofmt -l .)
+          if [ -n "$fm" ]; then
+            echo "gofmt found unformatted files:"
+            echo "$fm"
+            echo "Run 'gofmt -w .' to fix."
+            exit 1
+          fi
+
+      - name: go vet
+        run: |
+          go vet ./...
+
+      - name: Run golangci-lint
+        run: |
+          # Ensure golangci-lint is available in PATH
+          export PATH="$(go env GOPATH)/bin:$PATH"
+          golangci-lint run ./...
+
+      - name: Run tests (race + coverage)
+        run: |
+          # Run the full test suite with race detector and coverage
+          go test ./... -v -race -coverprofile=coverage.out
+          # Print coverage summary by function
+          go tool cover -func=coverage.out
+
+      - name: Upload coverage artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: coverage.out
+
+      - name: Run gosec
+        run: |
+          # Ensure gosec is available in PATH
+          export PATH="$(go env GOPATH)/bin:$PATH"
+          gosec ./...
