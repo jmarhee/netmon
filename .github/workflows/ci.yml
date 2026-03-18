@@ -29,8 +29,11 @@ jobs:
           go version
           go env
 
-      - name: Ensure modules download
+      - name: Ensure modules download and install libpcap dev
         run: |
+          # Install libpcap dev headers needed by gopacket/pcap for cgo builds on Ubuntu runners
+          sudo apt-get update
+          sudo apt-get install -y libpcap-dev pkg-config
           go mod download
 
       - name: Export Go paths for caching
