@@ -13,6 +13,11 @@ jobs:
     strategy:
       matrix:
         go-version: [1.22, 1.26]
+    # NOTE: Coverage generation and heavier tooling (golangci-lint, gosec) are only run
+    # on the latest Go (1.26). Older Go versions (1.22) remain in the matrix for basic
+    # compatibility testing, but we skip coverage and some lint/security steps on them
+    # because older toolchains may lack coverage helpers (e.g. "covdata") or produce
+    # incompatible outputs.
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -53,6 +58,7 @@ jobs:
             ${{ runner.os }}-go-
 
       - name: Install tooling
+        if: matrix.go-version == '1.26'
         run: |
           # Install gosec and golangci-lint into $GOPATH/bin
           go install github.com/securego/gosec/v2/cmd/gosec@latest
@@ -74,30 +80,39 @@ jobs:
           fi
 
       - name: go vet
+        if: matrix.go-version == '1.26'
         run: |
           go vet ./...
 
       - name: Run golangci-lint
+        if: matrix.go-version == '1.26'
         run: |
           # Ensure golangci-lint is available in PATH
           export PATH="$(go env GOPATH)/bin:$PATH"
           golangci-lint run ./...
 
-      - name: Run tests (race + coverage)
+      - name: Run tests (race)
         run: |
-          # Run the full test suite with race detector and coverage
+          # Run the full test suite with race detector (without coverage) on all Go versions
+          go test ./... -v -race
+
+      - name: Run tests (coverage)
+        if: matrix.go-version == '1.26'
+        run: |
+          # Run coverage-only test on the latest Go to generate coverage artifact
           go test ./... -v -race -coverprofile=coverage.out
           # Print coverage summary by function
           go tool cover -func=coverage.out
 
       - name: Upload coverage artifact
-        if: always()
+        if: always() && matrix.go-version == '1.26'
         uses: actions/upload-artifact@v4
         with:
-          name: coverage-${{ matrix.go-version }}-${{ github.run_id }}
+          name: coverage-1.26-${{ github.run_id }}
           path: coverage.out
 
       - name: Run gosec
+        if: matrix.go-version == '1.26'
         run: |
           # Ensure gosec is available in PATH
           export PATH="$(go env GOPATH)/bin:$PATH"
